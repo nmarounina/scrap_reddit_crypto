@@ -8,13 +8,21 @@ response=requests.get(url, headers=headers)
 
 soup=BeautifulSoup(response.content, "lxml")
 
-#print(soup.select('._eYtD2XCVieq6emjKBH3m')[0].get_text())
+attrs = {'class': 'thing', 'data-domain': 'self.CryptoCurrency'}
 
-titles=soup.find_all("a", class_="title")
-
-for title in titles:
-    print(title.get_text())
+for post in soup.find_all('div', attrs=attrs):
+    title = post.find('p', class_="title").text
+    print(title)
     print("\n")
+    
+#for domain in domains:
+#
+#    #if domain != "(self.CryptoCurrency)":
+#    #    continue
+#    parent_div = domain.parent.parent.parent.parent
+#    print(domain)
+#    print(parent_div.text)
+#    print("\n")
     
 #for item in soup.select(".Post"):
 #    try:
