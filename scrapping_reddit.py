@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 now=datetime.utcnow()
 limit_time = now-timedelta(hours=1, minutes=0)
-limit_time_post=now-timedelta(days=0, hours=2, minutes=0)
+limit_time_post=now-timedelta(days=0, hours=5, minutes=0)
 page_limit_hot=1
 
 #first, constitute the list of pages that contain posts we want to go through
