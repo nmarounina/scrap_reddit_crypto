@@ -14,20 +14,18 @@ from datetime import datetime, timedelta
 
 now=datetime.utcnow()
 limit_time = now-timedelta(hours=1, minutes=0)
-limit_time_post=now-timedelta(days=0, hours=5, minutes=0)
-page_limit_hot=1
+limit_time_post=now-timedelta(days=0, hours=2, minutes=0)
+page_limit_hot=2
 
-#first, constitute the list of pages that contain posts we want to go through
-
-
-
+############################################################################
+#Step 1:  let's constitute the list of pages that contain posts we want to go through
 headers = {"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"}
 
-url1 = "https://old.reddit.com/r/CryptoCurrency/new"
-#url2 = "https://old.reddit.com/r/CryptoCurrency/"
+url1 = "https://old.reddit.com/r/CryptoCurrency/new" #posts sorted by time posted
+url2 = "https://old.reddit.com/r/CryptoCurrency/" #posts sorted by popularity
 
 
-#for CryptoCurrency/new we will get ~all posts of the lats 12 hours
+#for CryptoCurrency/new we will get ~all posts of the last "limit_time_post" hours
 post_time_obj=now
 list_soups=[]
 while  post_time_obj > limit_time_post:
@@ -48,35 +46,20 @@ while  post_time_obj > limit_time_post:
 
 
 
-##for CryptoCurrency/ = "hot" page we get 5 last pages of posts, irrespective of the time when post has been created
-#for i in range(0,page_limit_hot):
-#    response=requests.get(url2, headers=headers)
-#    list_soups.append( BeautifulSoup(response.content, "lxml") )
-#    nav_buttons=list_soups[-1].find_all("div", class_="nav-buttons" )
-#
-#    url2=nav_buttons[0].find("span", class_="next-button").a.get("href")
-#    print("======",url2)
-#    time.sleep(0.01)
+#for CryptoCurrency/ = "hot" page we get "page_limit_hot" last pages of posts, irrespective of the time when post has been created
+for i in range(0,page_limit_hot):
+    response=requests.get(url2, headers=headers)
+    list_soups.append( BeautifulSoup(response.content, "lxml") )
+    nav_buttons=list_soups[-1].find_all("div", class_="nav-buttons" )
+
+    url2=nav_buttons[0].find("span", class_="next-button").a.get("href")
+    print("======",url2)
+    time.sleep(0.01)
 
 
 
 
-
-#Create and initiate a dictionnary to count the occurence of cryptocurrency names
-f=open("list_cc_names.dat", "r")
-
-dict_cc={}
-for name in f:
-    #print(name,name[0:-1], len(name))
-    
-    if len(name)>1:
-        dict_cc[name[0:-1].lower()]=0
-
-
-
-
-
-
+all_posts_text="" #will contain all of the gathered text from all posts and comments
 for soup in list_soups:
     #get the url of comments and creates a new soup object for the entire comment section
     for comments_tag in soup.find_all("a", class_="bylink comments may-blank", href=True):
@@ -98,13 +81,11 @@ for soup in list_soups:
 
             #Get the post text
             try :
-            
+
                 if post_time_obj>limit_time:
                     post_text=soup_comm.find("div", class_="expando").getText()
+                    all_posts_text=all_posts_text + " " +post_text
 
-                    for word in post_text.split():
-                        if word.lower() in dict_cc:
-                            dict_cc[word.lower()]+=1
             except:
                 print("#") #some posts have no text
 
@@ -123,16 +104,10 @@ for soup in list_soups:
                     if time_obj>limit_time:
 
                         text=commt.find("div", class_="md").getText()
-                        #print(time_obj,text)
-
-                        for word in text.split() :#.string.split():
-
-                            if word.lower() in dict_cc:
-                                dict_cc[word.lower()]+=1
-
+                        all_posts_text=all_posts_text + " " +text
 
                 except:
-                    print("*")
+                    print("*") #some comments don't go through
         except:
             print("&")
             
@@ -145,20 +120,44 @@ for soup in list_soups:
 
 
 
+
+############################################################################
+#Step 2: Create and initiate a dictionnary to count the occurence of cryptocurrency names
+f=open("list_cc_names.dat", "r")
+
+dict_cc={} #this will count occurences
+dict_abrv={} #this will redirect from an abbreviated name to the full name of a cryptocoin
+for line in f:
+    name, abrv=line.split()
+    
+    if len(name)>1: #skip the empty lines
+        dict_cc[name.lower()]=0
+        dict_abrv[ abrv.lower()] = name.lower()
+     
+     
+     
+
+############################################################################
+#Step 3: Once we have the list of cryptocurrency names ant all of the text from posts and comments,
+#let's count the occurences of mentions of cryptocoins:
+for word in all_posts_text.split():
+
+    if word.lower() in dict_cc:
+        dict_cc[word.lower()]+=1
+        
+    if word.lower() in dict_abrv:
+        dict_cc[ dict_abrv[word.lower()] ]+=1
+
+
 # In[5]:
 
 
-
-newdict={}
-for entry in dict_cc:
-    if dict_cc[entry] != 0:
-        
-        print(entry,dict_cc[entry])
-        newdict[entry]=dict_cc[entry]
-
-
-
-
+#newdict={}
+#for entry in dict_cc:
+#    if dict_cc[entry] != 0:
+#
+#        print(entry,dict_cc[entry])
+#        newdict[entry]=dict_cc[entry]
 
 
 # In[6]:
@@ -167,16 +166,19 @@ for entry in dict_cc:
 
 
 
-# Display stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+############################################################################
+#Step 4: Let's display a list of tem most mentionned cc
+#and a wordmap, just for fun
+
 #let's get the ten most popular notions and then display them
 list1=sorted(dict_cc.items(), reverse=True, key=lambda item: item[1])
 
 
-st.text("Ten most popular mentions in the last hour:")
+st.sidebar.write("Ten most popular mentions in the last hour:")
 i=1
 for k,v in list1:
     string_to_print= "#"+str(i)+" "+ str(k)+" with "+str(v)+" mentions"
-    st.text( string_to_print )
+    st.sidebar.write( string_to_print )
     i+=1
     if i==11 :
         break
@@ -195,8 +197,6 @@ from wordcloud import WordCloud
 #twilight
 wc = WordCloud(background_color="white",width=1000,height=1000, colormap="copper",
                relative_scaling=0.5,normalize_plurals=False).generate_from_frequencies(dict_cc)
-plt.imshow(wc)
-plt.axis("off")
 
 
 # In[9]:
@@ -205,16 +205,6 @@ plt.axis("off")
 cloud=wc.to_file("./images/cloud.png")
 image=Image.open("./images/cloud.png")
 st.image(image,width=700)
-
-plt.clf()
-plt.figure(figsize=(40, 10))
-plt.rcParams.update({"font.size": 40})
-plt.xticks(rotation=45)
-plt.bar(newdict.keys(), newdict.values(),color="brown", )
-st.pyplot(plt)
-
-# In[ ]:
-
 
 
 
